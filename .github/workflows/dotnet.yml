@@ -1,6 +1,6 @@
 name: .NET CI/CD
 
-on:
+o
   push:
     branches: [ main ]
   pull_request:
