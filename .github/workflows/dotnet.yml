@@ -1,21 +1,30 @@
 name: .NET CI/CD
 
-on :
+on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches: ["main"]
 
 jobs:
-  build-test-publish:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3                    # Checkout code
-      - uses: actions/setup-dotnet@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '.0.x'                   # Setup .NET SDK
-      - run: dotnet restore                           # Restore dependencies
-      - run: dotnet build --no-restore --configuration Release   # Build project
-      - run: dotnet test --no-build                   # Run tests
-      - run: dotnet publish -c Release -o ./publish   # Publish app
+          dotnet-version: '8.0.x'   # or '7.0.x' depending on your project
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build project
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test --no-build --verbosity normal
+
+      - name: Publish app
+        run: dotnet publish -c Release -o ./publish
