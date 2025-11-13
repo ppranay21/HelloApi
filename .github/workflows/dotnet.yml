@@ -1,123 +1,24 @@
-name: Universal CI/CD Pipeline
+name: .NET CI/CD
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
   pull_request:
-    branches: ["main"]
+    branches: [ "main" ]
 
 jobs:
-  build-test-deploy:
-    runs-on: ubuntu-latest
-
+  build:
+    runs-on: windows-latest
     steps:
-      # 1. Checkout code
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      # 2. Detect Language Automatically (optional)
-      - name: Detect Project Type
-        run: |
-          if [ -f "package.json" ]; then
-            echo "Detected Node.js project"
-            echo "PROJECT_TYPE=node" >> $GITHUB_ENV
-          elif [ -f "requirements.txt" ]; then
-            echo "Detected Python project"
-            echo "PROJECT_TYPE=python" >> $GITHUB_ENV
-          elif [ -f "*.csproj" ]; then
-            echo "Detected .NET project"
-            echo "PROJECT_TYPE=dotnet" >> $GITHUB_ENV
-          elif [ -f "pom.xml" ]; then
-            echo "Detected Java/Maven project"
-            echo "PROJECT_TYPE=java" >> $GITHUB_ENV
-          else
-            echo "Unknown project type — skipping specific setup"
-            echo "PROJECT_TYPE=unknown" >> $GITHUB_ENV
-          fi
-
-      # 3. Setup environment based on detected language
-      - name: Setup Environment
-        run: |
-          case $PROJECT_TYPE in
-            node)
-              echo "Setting up Node.js..."
-              sudo apt-get update
-              sudo apt-get install -y nodejs npm
-              npm install
-              ;;
-            python)
-              echo "Setting up Python..."
-              sudo apt-get update
-              sudo apt-get install -y python3 python3-pip
-              pip3 install -r requirements.txt || true
-              ;;
-            dotnet)
-              echo "Setting up .NET..."
-              sudo apt-get update
-              sudo apt-get install -y dotnet-sdk-8.0 || true
-              dotnet restore
-              ;;
-            java)
-              echo "Setting up Java..."
-              sudo apt-get update
-              sudo apt-get install -y openjdk-17-jdk maven
-              mvn clean install -DskipTests
-              ;;
-            *)
-              echo "Skipping setup — unknown project type."
-              ;;
-          esac
-
-      # 4. Run Tests
-      - name: Run Tests
-        run: |
-          case $PROJECT_TYPE in
-            node)
-              npm test || echo "No test script found."
-              ;;
-            python)
-              pytest || echo "pytest not found or no tests."
-              ;;
-            dotnet)
-              dotnet test || echo "No .NET tests found."
-              ;;
-            java)
-              mvn test || echo "No tests found."
-              ;;
-            *)
-              echo "Skipping tests."
-              ;;
-          esac
-
-      # 5. Build Project
-      - name: Build Project
-        run: |
-          case $PROJECT_TYPE in
-            node)
-              npm run build || echo "No build script found."
-              ;;
-            python)
-              echo "Python projects often don't need builds."
-              ;;
-            dotnet)
-              dotnet build --configuration Release
-              ;;
-            java)
-              mvn package -DskipTests
-              ;;
-            *)
-              echo "Skipping build."
-              ;;
-          esac
-
-      # 6. Deploy Step (generic example)
-      - name: Deploy (example)
-        if: github.ref == 'refs/heads/main'
-        run: |
-          echo "Starting deployment..."
-          # Add your deployment commands here
-          # For example:
-          # aws s3 sync ./dist s3://your-bucket
-          # or
-          # scp -r ./build user@your-server:/var/www/html
-          echo "Deployment completed."
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet restore
+      - run: dotnet build --configuration Release --no-restore
+      - run: dotnet test --no-build --verbosity normal
+      - run: dotnet publish --configuration Release --output ./publish
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-app
+          path: ./publish
